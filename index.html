@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Code Clipboard with Sharing</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 Shared Code Clipboard</h1>
+            <p>Store, share, and retrieve code snippets with 4-digit codes</p>
+        </header>
+
+        <main>
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="create">Create Snippet</button>
+                <button class="tab-btn" data-tab="retrieve">Retrieve Snippet</button>
+            </div>
+
+            <!-- Create Tab -->
+            <div class="tab-content active" id="create-tab">
+                <div class="input-section">
+                    <div class="input-header">
+                        <input type="text" id="snippet-title" placeholder="Snippet title..." maxlength="100">
+                        <select id="language-select">
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="html">HTML</option>
+                            <option value="css">CSS</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                            <option value="php">PHP</option>
+                            <option value="sql">SQL</option>
+                            <option value="bash">Bash</option>
+                            <option value="json">JSON</option>
+                            <option value="markdown">Markdown</option>
+                            <option value="text">Plain Text</option>
+                        </select>
+                    </div>
+                    <textarea id="code-input" placeholder="Paste your code here..."></textarea>
+                    <div class="input-actions">
+                        <button id="save-btn" class="primary-btn">💾 Save & Share</button>
+                        <button id="clear-btn" class="secondary-btn">🗑️ Clear</button>
+                    </div>
+                </div>
+
+                <div class="share-result" id="share-result" style="display: none;">
+                    <h3>🎉 Your snippet is ready to share!</h3>
+                    <div class="share-code">
+                        <strong>Share Code:</strong>
+                        <span id="share-id" class="share-id-display"></span>
+                        <button class="copy-btn" onclick="copyShareCode()">📋 Copy Code</button>
+                    </div>
+                    <p>Anyone with this 4-digit code can retrieve your snippet!</p>
+                </div>
+
+                <div class="snippets-section">
+                    <h2>📋 Your Saved Snippets</h2>
+                    <div id="snippets-container">
+                        <p class="empty-state">No snippets saved yet. Add your first code snippet above!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Retrieve Tab -->
+            <div class="tab-content" id="retrieve-tab">
+                <div class="retrieve-section">
+                    <h2>🔍 Retrieve Shared Snippet</h2>
+                    <p>Enter the 4-digit code to retrieve a shared code snippet:</p>
+                    
+                    <div class="retrieve-input">
+                        <input type="text" id="retrieve-code" placeholder="Enter 4-digit code..." maxlength="4" pattern="\d{4}">
+                        <button id="retrieve-btn" class="primary-btn">🔍 Retrieve</button>
+                    </div>
+                    
+                    <div id="retrieve-result" style="display: none;">
+                        <div class="snippet-card">
+                            <div class="snippet-header">
+                                <span id="retrieved-title" class="snippet-title"></span>
+                                <span id="retrieved-language" class="snippet-language"></span>
+                            </div>
+                            <div class="snippet-actions">
+                                <button class="snippet-btn copy-btn" onclick="copyRetrievedCode()">📋 Copy Code</button>
+                                <button class="snippet-btn secondary-btn" onclick="saveRetrievedSnippet()">💾 Save to My Snippets</button>
+                            </div>
+                            <div class="snippet-content">
+                                <pre><code id="retrieved-code-content"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="retrieve-error" style="display: none;">
+                        <p class="error-message">❌ Snippet not found. Please check the 4-digit code and try again.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Shared snippets expire after 24 hours. Your personal snippets are stored locally in your browser.</p>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
