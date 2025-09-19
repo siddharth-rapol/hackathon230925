@@ -13,29 +13,21 @@ class SharedCodeClipboard {
     }
 
     bindEvents() {
-        // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
         });
 
-        // Create tab events
         document.getElementById('save-btn').addEventListener('click', () => this.saveAndShareSnippet());
         document.getElementById('clear-btn').addEventListener('click', () => this.clearForm());
-        
-        // Retrieve tab events
         document.getElementById('retrieve-btn').addEventListener('click', () => this.retrieveSnippet());
         document.getElementById('retrieve-code').addEventListener('input', (e) => {
             e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
         });
-        
-        // Allow Enter to retrieve
         document.getElementById('retrieve-code').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.retrieveSnippet();
             }
         });
-
-        // Allow Ctrl+Enter to save
         document.getElementById('code-input').addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'Enter') {
                 this.saveAndShareSnippet();
@@ -48,31 +40,23 @@ class SharedCodeClipboard {
     }
 
     switchTab(tabName) {
-        // Update active tab button
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabName);
         });
-
-        // Update active tab content
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.toggle('active', content.id === `${tabName}-tab`);
         });
-
         this.currentTab = tabName;
-
-        // Clear retrieve form when switching to retrieve tab
         if (tabName === 'retrieve') {
             this.clearRetrieveForm();
         }
     }
 
     generateShareCode() {
-        // Generate a random 4-digit code
         let code;
         do {
             code = Math.floor(1000 + Math.random() * 9000).toString();
-        } while (this.sharedSnippets[code]); // Ensure uniqueness
-        
+        } while (this.sharedSnippets && this.sharedSnippets[code]);
         return code;
     }
 
@@ -80,12 +64,10 @@ class SharedCodeClipboard {
         const title = document.getElementById('snippet-title').value.trim();
         const code = document.getElementById('code-input').value.trim();
         const language = document.getElementById('language-select').value;
-
         if (!code) {
             alert('Please enter some code!');
             return;
         }
-
         const shareCode = this.generateShareCode();
         const snippet = {
             id: Date.now(),
@@ -94,20 +76,14 @@ class SharedCodeClipboard {
             code: code,
             language: language,
             timestamp: new Date().toISOString(),
-            expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
         };
-
-        // Save to shared snippets
         this.sharedSnippets[shareCode] = snippet;
         this.saveSharedSnippets();
-
-        // Also save to personal snippets
-        this.snippets.unshift({...snippet, isShared: true});
+        this.snippets.unshift({ ...snippet, isShared: true });
         this.saveSnippets();
         this.renderSnippets();
         this.clearForm();
-
-        // Show share result
         this.showShareResult(shareCode);
         this.showNotification('Snippet shared successfully!', 'success');
     }
@@ -115,11 +91,8 @@ class SharedCodeClipboard {
     showShareResult(shareCode) {
         const shareResult = document.getElementById('share-result');
         const shareIdDisplay = document.getElementById('share-id');
-        
         shareIdDisplay.textContent = shareCode;
         shareResult.style.display = 'block';
-        
-        // Auto-hide after 10 seconds
         setTimeout(() => {
             shareResult.style.display = 'none';
         }, 10000);
@@ -127,48 +100,38 @@ class SharedCodeClipboard {
 
     retrieveSnippet() {
         const code = document.getElementById('retrieve-code').value.trim();
-        
         if (!code || code.length !== 4) {
             this.showRetrieveError('Please enter a valid 4-digit code.');
             return;
         }
-
-        // Clean up expired snippets
         this.cleanupExpiredSnippets();
-
-        const snippet = this.sharedSnippets[code];
-        
+        const snippet = this.sharedSnippets ? this.sharedSnippets[code] : null;
         if (!snippet) {
             this.showRetrieveError('Snippet not found or expired.');
             return;
         }
-
         this.displayRetrievedSnippet(snippet);
     }
 
     displayRetrievedSnippet(snippet) {
         const resultDiv = document.getElementById('retrieve-result');
         const errorDiv = document.getElementById('retrieve-error');
-        
         errorDiv.style.display = 'none';
-        
         document.getElementById('retrieved-title').textContent = snippet.title;
         document.getElementById('retrieved-language').textContent = snippet.language;
-        document.getElementById('retrieved-code-content').textContent = snippet.code;
-        document.getElementById('retrieved-code-content').className = `language-${snippet.language}`;
-        
+        const codeElem = document.getElementById('retrieved-code-content');
+        if (codeElem) {
+            codeElem.textContent = snippet.code;
+            codeElem.className = `language-${snippet.language}`;
+            Prism.highlightElement(codeElem);
+        }
         resultDiv.style.display = 'block';
-        
-        // Re-highlight syntax
-        Prism.highlightElement(document.getElementById('retrieved-code-content'));
     }
 
     saveRetrievedSnippet() {
         const code = document.getElementById('retrieve-code').value.trim();
-        const snippet = this.sharedSnippets[code];
-        
+        const snippet = this.sharedSnippets ? this.sharedSnippets[code] : null;
         if (snippet) {
-            // Save to personal snippets
             this.snippets.unshift({
                 ...snippet,
                 id: Date.now(),
@@ -177,8 +140,6 @@ class SharedCodeClipboard {
             this.saveSnippets();
             this.renderSnippets();
             this.showNotification('Snippet saved to your collection!', 'success');
-            
-            // Switch to create tab
             this.switchTab('create');
         }
     }
@@ -192,7 +153,6 @@ class SharedCodeClipboard {
     showRetrieveError(message) {
         const errorDiv = document.getElementById('retrieve-error');
         const resultDiv = document.getElementById('retrieve-result');
-        
         resultDiv.style.display = 'none';
         errorDiv.querySelector('.error-message').textContent = message;
         errorDiv.style.display = 'block';
@@ -201,17 +161,17 @@ class SharedCodeClipboard {
     cleanupExpiredSnippets() {
         const now = Date.now();
         let hasChanges = false;
-        
-        for (const [code, snippet] of Object.entries(this.sharedSnippets)) {
-            if (snippet.expiresAt < now) {
-                delete this.sharedSnippets[code];
+        const sharedObj = this.sharedSnippets || {};
+        for (const [code, snippet] of Object.entries(sharedObj)) {
+            if (!snippet || !snippet.expiresAt || snippet.expiresAt < now) {
+                delete sharedObj[code];
                 hasChanges = true;
             }
         }
-        
         if (hasChanges) {
             this.saveSharedSnippets();
         }
+        this.sharedSnippets = sharedObj;
     }
 
     clearForm() {
@@ -246,12 +206,10 @@ class SharedCodeClipboard {
 
     renderSnippets() {
         const container = document.getElementById('snippets-container');
-        
-        if (this.snippets.length === 0) {
+        if (!this.snippets || this.snippets.length === 0) {
             container.innerHTML = '<p class="empty-state">No snippets saved yet. Add your first code snippet above!</p>';
             return;
         }
-
         container.innerHTML = this.snippets.map(snippet => `
             <div class="snippet-card" data-id="${snippet.id}">
                 <div class="snippet-header">
@@ -275,7 +233,6 @@ class SharedCodeClipboard {
                 </div>
             </div>
         `).join('');
-
         Prism.highlightAll();
     }
 
@@ -307,7 +264,7 @@ class SharedCodeClipboard {
         try {
             const stored = localStorage.getItem('sharedSnippets');
             const snippets = stored ? JSON.parse(stored) : {};
-            this.cleanupExpiredSnippets();
+            if (typeof snippets !== 'object' || snippets === null) return {};
             return snippets;
         } catch (error) {
             console.error('Error loading shared snippets:', error);
@@ -333,7 +290,6 @@ class SharedCodeClipboard {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.textContent = message;
-        
         Object.assign(notification.style, {
             position: 'fixed',
             top: '20px',
@@ -346,20 +302,16 @@ class SharedCodeClipboard {
             transform: 'translateX(100%)',
             transition: 'transform 0.3s ease'
         });
-
         const colors = {
             success: '#28a745',
             info: '#17a2b8',
             error: '#dc3545'
         };
         notification.style.backgroundColor = colors[type] || colors.info;
-
         document.body.appendChild(notification);
-
         setTimeout(() => {
             notification.style.transform = 'translateX(0)';
         }, 100);
-
         setTimeout(() => {
             notification.style.transform = 'translateX(100%)';
             setTimeout(() => {
@@ -378,7 +330,8 @@ function copyShareCode() {
 }
 
 function copyRetrievedCode() {
-    const code = document.getElementById('retrieved-code-content').textContent;
+    const codeElem = document.getElementById('retrieved-code-content');
+    const code = codeElem ? codeElem.textContent : '';
     navigator.clipboard.writeText(code).then(() => {
         clipboard.showNotification('Code copied to clipboard!', 'success');
     });
@@ -386,3 +339,8 @@ function copyRetrievedCode() {
 
 // Initialize the clipboard
 const clipboard = new SharedCodeClipboard();
+
+// For Save to My Snippets button
+function saveRetrievedSnippet() {
+    clipboard.saveRetrievedSnippet();
+}
