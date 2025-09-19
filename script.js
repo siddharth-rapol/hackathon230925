@@ -1,8 +1,8 @@
 class SharedCodeClipboard {
     constructor() {
-        this.snippets = this.loadSnippets();
-        this.sharedSnippets = this.loadSharedSnippets();
+        this.snippets = this.loadSnippets(); // personal snippets in localStorage
         this.currentTab = 'create';
+        this.apiBaseUrl = 'https://YOUR_BACKEND_DOMAIN'; // update to your deployed backend URL
         this.init();
     }
 
@@ -52,15 +52,7 @@ class SharedCodeClipboard {
         }
     }
 
-    generateShareCode() {
-        let code;
-        do {
-            code = Math.floor(1000 + Math.random() * 9000).toString();
-        } while (this.sharedSnippets && this.sharedSnippets[code]);
-        return code;
-    }
-
-    saveAndShareSnippet() {
+    async saveAndShareSnippet() {
         const title = document.getElementById('snippet-title').value.trim();
         const code = document.getElementById('code-input').value.trim();
         const language = document.getElementById('language-select').value;
@@ -68,49 +60,60 @@ class SharedCodeClipboard {
             alert('Please enter some code!');
             return;
         }
-        const shareCode = this.generateShareCode();
-        const snippet = {
-            id: Date.now(),
-            shareCode: shareCode,
-            title: title || `Shared ${new Date().toLocaleString()}`,
-            code: code,
-            language: language,
-            timestamp: new Date().toISOString(),
-            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
-        };
-        this.sharedSnippets[shareCode] = snippet;
-        this.saveSharedSnippets();
-        this.snippets.unshift({ ...snippet, isShared: true });
-        this.saveSnippets();
-        this.renderSnippets();
-        this.clearForm();
-        this.showShareResult(shareCode);
-        this.showNotification('Snippet shared successfully!', 'success');
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/snippets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, code, language })
+            });
+            if (!response.ok) {
+                alert('Failed to share snippet. Please try again.');
+                return;
+            }
+            const data = await response.json();
+            const shareCode = data.shareCode;
+
+            // Save personal snippet locally
+            const snippet = {
+                id: Date.now(),
+                shareCode: shareCode,
+                title: title || `Shared ${new Date().toLocaleString()}`,
+                code: code,
+                language: language,
+                timestamp: new Date().toISOString(),
+                expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+                isShared: true
+            };
+            this.snippets.unshift(snippet);
+            this.saveSnippets();
+            this.renderSnippets();
+            this.clearForm();
+            this.showShareResult(shareCode);
+            this.showNotification('Snippet shared successfully!', 'success');
+        } catch (error) {
+            console.error('Error sharing snippet:', error);
+            alert('Error sharing snippet. See console for details.');
+        }
     }
 
-    showShareResult(shareCode) {
-        const shareResult = document.getElementById('share-result');
-        const shareIdDisplay = document.getElementById('share-id');
-        shareIdDisplay.textContent = shareCode;
-        shareResult.style.display = 'block';
-        setTimeout(() => {
-            shareResult.style.display = 'none';
-        }, 10000);
-    }
-
-    retrieveSnippet() {
+    async retrieveSnippet() {
         const code = document.getElementById('retrieve-code').value.trim();
         if (!code || code.length !== 4) {
             this.showRetrieveError('Please enter a valid 4-digit code.');
             return;
         }
-        this.cleanupExpiredSnippets();
-        const snippet = this.sharedSnippets ? this.sharedSnippets[code] : null;
-        if (!snippet) {
-            this.showRetrieveError('Snippet not found or expired.');
-            return;
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/snippets/${code}`);
+            if (!response.ok) {
+                this.showRetrieveError('Snippet not found or expired.');
+                return;
+            }
+            const snippet = await response.json();
+            this.displayRetrievedSnippet(snippet);
+        } catch (error) {
+            console.error('Error fetching snippet:', error);
+            this.showRetrieveError('Failed to retrieve snippet. Please try again.');
         }
-        this.displayRetrievedSnippet(snippet);
     }
 
     displayRetrievedSnippet(snippet) {
@@ -130,18 +133,27 @@ class SharedCodeClipboard {
 
     saveRetrievedSnippet() {
         const code = document.getElementById('retrieve-code').value.trim();
-        const snippet = this.sharedSnippets ? this.sharedSnippets[code] : null;
-        if (snippet) {
-            this.snippets.unshift({
-                ...snippet,
-                id: Date.now(),
-                isShared: false
-            });
-            this.saveSnippets();
-            this.renderSnippets();
-            this.showNotification('Snippet saved to your collection!', 'success');
+        // Find snippet in local personal snippets or add new from displayed snippet content
+        const snippetIndex = this.snippets.findIndex(s => s.shareCode === code);
+        if (snippetIndex >= 0) {
+            this.showNotification('Snippet already saved to your collection!', 'info');
             this.switchTab('create');
+            return;
         }
+        const snippet = {
+            id: Date.now(),
+            shareCode: code,
+            title: document.getElementById('retrieved-title').textContent,
+            language: document.getElementById('retrieved-language').textContent,
+            code: document.getElementById('retrieved-code-content').textContent,
+            timestamp: new Date().toISOString(),
+            isShared: false
+        };
+        this.snippets.unshift(snippet);
+        this.saveSnippets();
+        this.renderSnippets();
+        this.showNotification('Snippet saved to your collection!', 'success');
+        this.switchTab('create');
     }
 
     clearRetrieveForm() {
@@ -156,22 +168,6 @@ class SharedCodeClipboard {
         resultDiv.style.display = 'none';
         errorDiv.querySelector('.error-message').textContent = message;
         errorDiv.style.display = 'block';
-    }
-
-    cleanupExpiredSnippets() {
-        const now = Date.now();
-        let hasChanges = false;
-        const sharedObj = this.sharedSnippets || {};
-        for (const [code, snippet] of Object.entries(sharedObj)) {
-            if (!snippet || !snippet.expiresAt || snippet.expiresAt < now) {
-                delete sharedObj[code];
-                hasChanges = true;
-            }
-        }
-        if (hasChanges) {
-            this.saveSharedSnippets();
-        }
-        this.sharedSnippets = sharedObj;
     }
 
     clearForm() {
@@ -257,26 +253,6 @@ class SharedCodeClipboard {
         } catch (error) {
             console.error('Error saving snippets:', error);
             alert('Error saving snippet. Please check your browser storage settings.');
-        }
-    }
-
-    loadSharedSnippets() {
-        try {
-            const stored = localStorage.getItem('sharedSnippets');
-            const snippets = stored ? JSON.parse(stored) : {};
-            if (typeof snippets !== 'object' || snippets === null) return {};
-            return snippets;
-        } catch (error) {
-            console.error('Error loading shared snippets:', error);
-            return {};
-        }
-    }
-
-    saveSharedSnippets() {
-        try {
-            localStorage.setItem('sharedSnippets', JSON.stringify(this.sharedSnippets));
-        } catch (error) {
-            console.error('Error saving shared snippets:', error);
         }
     }
 
